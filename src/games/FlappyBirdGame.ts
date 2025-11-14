@@ -28,9 +28,12 @@ class Bird {
   frameTimer: number = 0;
   frameInterval: number = 5;
   
-  // 精灵图中的小鸟位置（黄色小鸟）
-  spriteX: number = 3;
-  spriteY: number = 491;
+  // 精灵图中的小鸟位置（原项目坐标）
+  animation = [
+    { spriteX: 932, spriteY: 429, spriteW: 68, spriteH: 48 },
+    { spriteX: 932, spriteY: 478, spriteW: 68, spriteH: 48 },
+    { spriteX: 932, spriteY: 527, spriteW: 68, spriteH: 48 }
+  ];
 
   constructor(game: FlappyBirdGame) {
     this.game = game;
@@ -74,11 +77,12 @@ class Bird {
     ctx.rotate(this.rotation);
 
     if (this.image && this.image.complete) {
-      // 从精灵图中提取小鸟（3帧动画）
+      // 使用原项目的精灵图坐标
+      const birdSprite = this.animation[this.frameX];
       ctx.drawImage(
         this.image,
-        this.spriteX + this.frameX * 34, this.spriteY,
-        34, 24,
+        birdSprite.spriteX, birdSprite.spriteY,
+        birdSprite.spriteW, birdSprite.spriteH,
         -this.width / 2, -this.height / 2,
         this.width, this.height
       );
@@ -109,8 +113,11 @@ class Pipe {
   passed: boolean = false;
   speed: number = 2;
   
-  topImage: any = null;
-  bottomImage: any = null;
+  // 原项目精灵图坐标
+  topSprite = { spriteX: 1001, spriteY: 0, spriteW: 104, spriteH: 800 };
+  bottomSprite = { spriteX: 1105, spriteY: 0, spriteW: 104, spriteH: 800 };
+  
+  image: any = null;
 
   constructor(game: FlappyBirdGame, x: number) {
     this.game = game;
@@ -127,21 +134,31 @@ class Pipe {
   }
 
   draw(ctx: CanvasRenderingContext2D) {
-    // 上管道
-    ctx.fillStyle = '#5AB552';
-    ctx.fillRect(this.x, 0, this.width, this.topHeight);
-    
-    // 管道顶部装饰
-    ctx.fillStyle = '#6FCA61';
-    ctx.fillRect(this.x - 5, this.topHeight - 30, this.width + 10, 30);
+    if (this.image && this.image.complete) {
+      // 使用原项目的管道精灵图
+      // 上管道
+      ctx.drawImage(
+        this.image,
+        this.topSprite.spriteX, this.topSprite.spriteY,
+        this.topSprite.spriteW, this.topSprite.spriteH,
+        this.x, this.topHeight - this.topSprite.spriteH,
+        this.width, this.topSprite.spriteH
+      );
 
-    // 下管道
-    ctx.fillStyle = '#5AB552';
-    ctx.fillRect(this.x, this.bottomY, this.width, this.game.canvas.height - this.bottomY);
-    
-    // 管道顶部装饰
-    ctx.fillStyle = '#6FCA61';
-    ctx.fillRect(this.x - 5, this.bottomY, this.width + 10, 30);
+      // 下管道
+      ctx.drawImage(
+        this.image,
+        this.bottomSprite.spriteX, this.bottomSprite.spriteY,
+        this.bottomSprite.spriteW, this.bottomSprite.spriteH,
+        this.x, this.bottomY,
+        this.width, this.game.canvas.height - this.bottomY
+      );
+    } else {
+      // 占位符
+      ctx.fillStyle = '#5AB552';
+      ctx.fillRect(this.x, 0, this.width, this.topHeight);
+      ctx.fillRect(this.x, this.bottomY, this.width, this.game.canvas.height - this.bottomY);
+    }
   }
 
   isOffScreen(): boolean {
@@ -175,6 +192,9 @@ class Background {
   x: number = 0;
   speed: number = 1;
   image: any = null;
+  
+  // 原项目背景坐标（白天背景）
+  sprite = { spriteX: 0, spriteY: 0, spriteW: 552, spriteH: 768 };
 
   constructor(game: FlappyBirdGame) {
     this.game = game;
@@ -190,14 +210,35 @@ class Background {
   draw(ctx: CanvasRenderingContext2D) {
     const { width, height } = this.game.canvas;
     
-    // 天空渐变
-    const gradient = ctx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, '#4EC0CA');
-    gradient.addColorStop(1, '#DDF0F3');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-
-    // 可以在这里添加云朵等装饰
+    if (this.image && this.image.complete) {
+      // 使用原项目的背景精灵图（循环绘制）
+      const scale = height / this.sprite.spriteH;
+      const bgWidth = this.sprite.spriteW * scale;
+      
+      ctx.drawImage(
+        this.image,
+        this.sprite.spriteX, this.sprite.spriteY,
+        this.sprite.spriteW, this.sprite.spriteH,
+        this.x, 0,
+        bgWidth, height
+      );
+      
+      // 第二张背景（无缝循环）
+      ctx.drawImage(
+        this.image,
+        this.sprite.spriteX, this.sprite.spriteY,
+        this.sprite.spriteW, this.sprite.spriteH,
+        this.x + bgWidth, 0,
+        bgWidth, height
+      );
+    } else {
+      // 占位符
+      const gradient = ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, '#4EC0CA');
+      gradient.addColorStop(1, '#DDF0F3');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+    }
   }
 }
 
@@ -205,9 +246,12 @@ class Background {
 class Ground {
   game: FlappyBirdGame;
   x: number = 0;
-  height: number = 100;
+  height: number = 120;
   speed: number = 2;
   image: any = null;
+  
+  // 原项目地面坐标
+  sprite = { spriteX: 552, spriteY: 233, spriteW: 672, spriteH: 224 };
 
   constructor(game: FlappyBirdGame) {
     this.game = game;
@@ -224,20 +268,32 @@ class Ground {
     const { width, height } = this.game.canvas;
     const y = height - this.height;
 
-    // 绘制地面
-    ctx.fillStyle = '#DED895';
-    ctx.fillRect(0, y, width, this.height);
-
-    // 草地效果
-    ctx.fillStyle = '#B4D27D';
-    for (let i = 0; i < width; i += 10) {
-      ctx.fillRect(this.x + i, y, 8, 10);
-      ctx.fillRect(this.x + i + width, y, 8, 10);
+    if (this.image && this.image.complete) {
+      // 使用原项目的地面精灵图（循环绘制）
+      const scale = this.height / this.sprite.spriteH;
+      const fgWidth = this.sprite.spriteW * scale;
+      
+      ctx.drawImage(
+        this.image,
+        this.sprite.spriteX, this.sprite.spriteY,
+        this.sprite.spriteW, this.sprite.spriteH,
+        this.x, y,
+        fgWidth, this.height
+      );
+      
+      // 第二张地面（无缝循环）
+      ctx.drawImage(
+        this.image,
+        this.sprite.spriteX, this.sprite.spriteY,
+        this.sprite.spriteW, this.sprite.spriteH,
+        this.x + fgWidth, y,
+        fgWidth, this.height
+      );
+    } else {
+      // 占位符
+      ctx.fillStyle = '#DED895';
+      ctx.fillRect(0, y, width, this.height);
     }
-
-    // 土壤层
-    ctx.fillStyle = '#C88A4C';
-    ctx.fillRect(0, y + 20, width, this.height - 20);
   }
 
   collidesWith(bird: Bird): boolean {
@@ -268,6 +324,9 @@ export class FlappyBirdGame implements Scene {
   // 管道生成
   pipeSpawnTimer: number = 0;
   pipeSpawnInterval: number = 90; // 帧数
+  
+  // 精灵图（共享）
+  spriteSheet: any = null;
 
   // UI 元素
   private backBtn = { x: 20, y: 60, width: 100, height: 50 };
@@ -294,12 +353,15 @@ export class FlappyBirdGame implements Scene {
     this.background = new Background(this);
     this.ground = new Ground(this);
 
-    // 加载精灵图
-    const spriteSheet = wx.createImage();
-    spriteSheet.onload = () => {
-      this.bird.image = spriteSheet;
+    // 加载精灵图（所有游戏元素共用一张）
+    this.spriteSheet = wx.createImage();
+    this.spriteSheet.onload = () => {
+      this.bird.image = this.spriteSheet;
+      this.background.image = this.spriteSheet;
+      this.ground.image = this.spriteSheet;
+      console.log('[FlappyBird] Sprite sheet loaded');
     };
-    spriteSheet.src = 'assets/flappybird/sprite_sheet.png';
+    this.spriteSheet.src = 'assets/flappybird/sprite_sheet.png';
   }
 
   enter(data?: any): void {
@@ -333,7 +395,9 @@ export class FlappyBirdGame implements Scene {
       // 生成管道
       this.pipeSpawnTimer++;
       if (this.pipeSpawnTimer >= this.pipeSpawnInterval) {
-        this.pipes.push(new Pipe(this, this.canvas.width));
+        const pipe = new Pipe(this, this.canvas.width);
+        pipe.image = this.spriteSheet; // 给管道分配精灵图
+        this.pipes.push(pipe);
         this.pipeSpawnTimer = 0;
       }
 
