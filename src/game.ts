@@ -13,6 +13,7 @@ import { LobbyScene } from './scenes/LobbyScene';
 import { Game2048 } from './games/Game2048';
 import { TetrisGame } from './games/TetrisGame';
 import { ShooterGame } from './games/ShooterGame';
+import { FlappyBirdGame } from './games/FlappyBirdGame';
 
 class Game {
   private sceneManager: SceneManager;
@@ -87,6 +88,12 @@ class Game {
     shooterGame.setSceneManager(this.sceneManager);
     shooterGame.setGameBridge(this.gameBridge);
     this.sceneManager.register(shooterGame);
+
+    // Flappy Bird 游戏
+    const flappyBirdGame = new FlappyBirdGame();
+    flappyBirdGame.setSceneManager(this.sceneManager);
+    flappyBirdGame.setGameBridge(this.gameBridge);
+    this.sceneManager.register(flappyBirdGame);
 
     console.log('[Game] All scenes registered');
   }

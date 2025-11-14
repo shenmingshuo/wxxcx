@@ -55,6 +55,16 @@ export class MenuScene implements Scene {
       minPlayers: 1,
       maxPlayers: 1,
       duration: 600
+    },
+    {
+      id: 'flappybird',
+      name: 'Flappy Bird',
+      description: '点击飞行，避开管道，挑战极限！',
+      icon: '🐦',
+      supportMultiplayer: false,
+      minPlayers: 1,
+      maxPlayers: 1,
+      duration: 300
     }
   ];
 
