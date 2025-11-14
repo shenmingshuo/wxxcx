@@ -27,36 +27,6 @@ export class MenuScene implements Scene {
   // 游戏配置列表
   private games: GameConfig[] = [
     {
-      id: 'reaction',
-      name: '反应力PK',
-      description: '快速点击移动的目标，比谁反应更快！',
-      icon: '🎯',
-      supportMultiplayer: true,
-      minPlayers: 1,
-      maxPlayers: 2,
-      duration: 30
-    },
-    {
-      id: 'memory',
-      name: '数字记忆',
-      description: '记住数字序列，挑战你的记忆力！',
-      icon: '🧠',
-      supportMultiplayer: true,
-      minPlayers: 1,
-      maxPlayers: 2,
-      duration: 60
-    },
-    {
-      id: 'snake',
-      name: '贪吃蛇',
-      description: '经典贪吃蛇，挑战你的反应和策略！',
-      icon: '🐍',
-      supportMultiplayer: false,
-      minPlayers: 1,
-      maxPlayers: 1,
-      duration: 180
-    },
-    {
       id: 'game2048',
       name: '2048',
       description: '滑动合并数字，挑战2048！',
@@ -65,6 +35,26 @@ export class MenuScene implements Scene {
       minPlayers: 1,
       maxPlayers: 1,
       duration: 300
+    },
+    {
+      id: 'tetris',
+      name: '俄罗斯方块',
+      description: '经典俄罗斯方块，手势操控更流畅！',
+      icon: '🧱',
+      supportMultiplayer: false,
+      minPlayers: 1,
+      maxPlayers: 1,
+      duration: 600
+    },
+    {
+      id: 'shooter',
+      name: '空中射击',
+      description: '驾驶战机消灭敌人，挑战高分！',
+      icon: '✈️',
+      supportMultiplayer: false,
+      minPlayers: 1,
+      maxPlayers: 1,
+      duration: 600
     }
   ];
 

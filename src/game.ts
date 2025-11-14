@@ -10,10 +10,9 @@ import { MenuScene } from './scenes/MenuScene';
 import { LobbyScene } from './scenes/LobbyScene';
 
 // 游戏
-import { ReactionGame } from './games/ReactionGame';
-import { MemoryGame } from './games/MemoryGame';
-import { SnakeGame } from './games/SnakeGame';
 import { Game2048 } from './games/Game2048';
+import { TetrisGame } from './games/TetrisGame';
+import { ShooterGame } from './games/ShooterGame';
 
 class Game {
   private sceneManager: SceneManager;
@@ -71,29 +70,23 @@ class Game {
     lobbyScene.setGameBridge(this.gameBridge);
     this.sceneManager.register(lobbyScene);
 
-    // 反应力游戏
-    const reactionGame = new ReactionGame();
-    reactionGame.setSceneManager(this.sceneManager);
-    reactionGame.setGameBridge(this.gameBridge);
-    this.sceneManager.register(reactionGame);
-
-    // 记忆力游戏
-    const memoryGame = new MemoryGame();
-    memoryGame.setSceneManager(this.sceneManager);
-    memoryGame.setGameBridge(this.gameBridge);
-    this.sceneManager.register(memoryGame);
-
-    // 贪吃蛇游戏
-    const snakeGame = new SnakeGame();
-    snakeGame.setSceneManager(this.sceneManager);
-    snakeGame.setGameBridge(this.gameBridge);
-    this.sceneManager.register(snakeGame);
-
     // 2048游戏
     const game2048 = new Game2048();
     game2048.setSceneManager(this.sceneManager);
     game2048.setGameBridge(this.gameBridge);
     this.sceneManager.register(game2048);
+
+    // 俄罗斯方块游戏
+    const tetrisGame = new TetrisGame();
+    tetrisGame.setSceneManager(this.sceneManager);
+    tetrisGame.setGameBridge(this.gameBridge);
+    this.sceneManager.register(tetrisGame);
+
+    // 射击游戏
+    const shooterGame = new ShooterGame();
+    shooterGame.setSceneManager(this.sceneManager);
+    shooterGame.setGameBridge(this.gameBridge);
+    this.sceneManager.register(shooterGame);
 
     console.log('[Game] All scenes registered');
   }
