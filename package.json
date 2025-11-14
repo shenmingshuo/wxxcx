@@ -1,0 +1,20 @@
+{
+  "name": "wxgame-collection",
+  "version": "1.0.0",
+  "description": "微信小游戏合集 - 支持多游戏和联机PK",
+  "main": "game.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "server": "cd server && npm start",
+    "server:dev": "cd server && npm run dev"
+  },
+  "keywords": ["wechat", "minigame", "multiplayer"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "miniprogram-api-typings": "^3.12.2",
+    "typescript": "^5.2.2"
+  }
+}
+

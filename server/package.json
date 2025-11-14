@@ -1,0 +1,29 @@
+{
+  "name": "wxgame-server",
+  "version": "1.0.0",
+  "description": "微信小游戏服务器",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts",
+    "watch": "tsc --watch"
+  },
+  "keywords": ["websocket", "game", "multiplayer"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.14.2",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.8",
+    "@types/express": "^4.17.20",
+    "@types/cors": "^2.8.15",
+    "@types/node": "^20.8.10",
+    "typescript": "^5.2.2",
+    "ts-node": "^10.9.1"
+  }
+}
+
