@@ -10,10 +10,12 @@ import { MenuScene } from './scenes/MenuScene';
 import { LobbyScene } from './scenes/LobbyScene';
 
 // 游戏
+import { 合成大西瓜Game } from './games/合成大西瓜Game';
 import { Game2048 } from './games/Game2048';
 import { TetrisGame } from './games/TetrisGame';
 import { ShooterGame } from './games/ShooterGame';
 import { FlappyBirdGame } from './games/FlappyBirdGame';
+import { 笨鸟先飞Game } from './games/笨鸟先飞Game';
 
 class Game {
   private sceneManager: SceneManager;
@@ -71,6 +73,12 @@ class Game {
     lobbyScene.setGameBridge(this.gameBridge);
     this.sceneManager.register(lobbyScene);
 
+    // 合成大西瓜游戏 - 放在第一位
+    const watermelonGame = new 合成大西瓜Game();
+    watermelonGame.setSceneManager(this.sceneManager);
+    watermelonGame.setGameBridge(this.gameBridge);
+    this.sceneManager.register(watermelonGame);
+
     // 2048游戏
     const game2048 = new Game2048();
     game2048.setSceneManager(this.sceneManager);
@@ -94,6 +102,12 @@ class Game {
     flappyBirdGame.setSceneManager(this.sceneManager);
     flappyBirdGame.setGameBridge(this.gameBridge);
     this.sceneManager.register(flappyBirdGame);
+
+    // 笨鸟先飞游戏（新版Flappy Bird）
+    const 笨鸟先飞 = new 笨鸟先飞Game();
+    笨鸟先飞.setSceneManager(this.sceneManager);
+    笨鸟先飞.setGameBridge(this.gameBridge);
+    this.sceneManager.register(笨鸟先飞);
 
     console.log('[Game] All scenes registered');
   }
