@@ -14,6 +14,7 @@ import { WatermelonGame } from './games/WatermelonGame';
 import { Game2048 } from './games/Game2048';
 import { TetrisGame } from './games/TetrisGame';
 import { ClumsyBirdGame } from './games/ClumsyBirdGame';
+import { GobangGame } from './games/GobangGame';
 
 class Game {
   private sceneManager: SceneManager;
@@ -95,6 +96,12 @@ class Game {
     clumsyBird.setSceneManager(this.sceneManager);
     clumsyBird.setGameBridge(this.gameBridge);
     this.sceneManager.register(clumsyBird);
+
+    // 五子棋
+    const gobangGame = new GobangGame();
+    gobangGame.setSceneManager(this.sceneManager);
+    gobangGame.setGameBridge(this.gameBridge);
+    this.sceneManager.register(gobangGame);
 
     console.log('[Game] All scenes registered');
   }

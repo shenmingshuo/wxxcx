@@ -18,13 +18,13 @@ export enum MessageType {
   JOIN_ROOM = 'join_room',
   LEAVE_ROOM = 'leave_room',
   ROOM_UPDATE = 'room_update',
-  
+
   // 游戏流程
   READY = 'ready',
   START_GAME = 'start_game',
   GAME_ACTION = 'game_action',
   GAME_OVER = 'game_over',
-  
+
   // 连接相关
   PING = 'ping',
   PONG = 'pong',
@@ -62,7 +62,10 @@ export interface GameConfig {
   id: string;
   name: string;
   description: string;
-  icon: string;
+  icon?: string;
+  iconType?: 'image' | 'emoji';
+  iconValue?: string;
+  color?: string;
   supportMultiplayer: boolean;
   minPlayers: number;
   maxPlayers: number;

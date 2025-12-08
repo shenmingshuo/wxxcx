@@ -99,7 +99,21 @@ export class MenuScene implements Scene {
       id: 'clumsy_bird',
       name: '笨鸟先飞',
       description: '经典复刻版',
-      icon: 'assets/icons/icon_clumsy.png',
+      iconType: 'image',
+      iconValue: 'assets/icons/icon_clumsy.png',
+      color: '#87CEEB',
+      supportMultiplayer: false,
+      minPlayers: 1,
+      maxPlayers: 1,
+      duration: 300
+    },
+    {
+      id: 'gobang',
+      name: '五子棋',
+      description: '黑白之道，方寸之间',
+      iconType: 'emoji', // Using emoji for now, looks clean for Gobang
+      iconValue: '⚫',
+      color: '#DEB887', // Wood color
       supportMultiplayer: false,
       minPlayers: 1,
       maxPlayers: 1,
@@ -332,6 +346,7 @@ export class MenuScene implements Scene {
 
   private onGameCardClick(game: GameConfig): void {
     console.log(`[MenuScene] Card clicked: ${game.name} (${game.id})`);
+
     wx.showModal({
       title: game.name,
       content: 'Ready to Start?',
@@ -340,15 +355,33 @@ export class MenuScene implements Scene {
       confirmText: '多人',
       confirmColor: Theme.colors.primary.main,
       success: (res) => {
-        console.log('[MenuScene] Modal result:', res);
         if (res.confirm) {
           (this as any).__sceneManager.switchTo('lobby', { gameType: game.id });
         } else if (res.cancel) {
-          (this as any).__sceneManager.switchTo(game.id, { mode: 'single' });
+          // If Gobang, ask for difficulty
+          if (game.id === 'gobang') {
+            this.showDifficultySelection(game.id);
+          } else {
+            (this as any).__sceneManager.switchTo(game.id, { mode: 'single' });
+          }
         }
       },
       fail: (err) => {
         console.error('[MenuScene] ShowModal failed:', err);
+      }
+    });
+  }
+
+  private showDifficultySelection(gameId: string): void {
+    wx.showActionSheet({
+      itemList: ['简单 (Easy)', '普通 (Medium)', '困难 (Hard)'],
+      success: (res) => {
+        const levels = ['easy', 'medium', 'hard'];
+        const difficulty = levels[res.tapIndex];
+        (this as any).__sceneManager.switchTo(gameId, { mode: 'single', difficulty });
+      },
+      fail: (res) => {
+        console.log(res.errMsg);
       }
     });
   }

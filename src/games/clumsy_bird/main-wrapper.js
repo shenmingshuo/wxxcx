@@ -33,10 +33,10 @@ export class Main {
   // 创建背景音乐
   createBackgroundMusic() {
     try {
-      const bgm = wx.createInnerAudioContext();
-      bgm.autoplay = true;
-      bgm.loop = true;
-      bgm.src = 'assets/clumsy_bird/bgm.mp3';
+      this.bgm = wx.createInnerAudioContext();
+      this.bgm.autoplay = true;
+      this.bgm.loop = true;
+      this.bgm.src = 'assets/clumsy_bird/bgm.mp3';
     } catch (e) {
       console.log('[笨鸟先飞] Background music not available');
     }
@@ -62,17 +62,18 @@ export class Main {
     if (this.touchHandler) {
       wx.offTouchStart(this.touchHandler);
     }
+    // We do NOT register wx.onTouchStart here anymore.
+    // The outer class will call handleTouch() instead.
+  }
 
-    this.touchHandler = () => {
-      if (this.manager.isGameOver) {
-        console.log('游戏开始');
-        this.init();
-      } else {
-        this.manager.birdsEvent();
-      }
-    };
-
-    wx.onTouchStart(this.touchHandler);
+  // Exposed method for external control
+  handleTouch() {
+    if (this.manager.isGameOver) {
+      console.log('游戏重新开始');
+      this.init();
+    } else {
+      this.manager.birdsEvent();
+    }
   }
 
   // 销毁游戏
@@ -82,6 +83,11 @@ export class Main {
     }
     if (this.dataStore.get('timer')) {
       cancelAnimationFrame(this.dataStore.get('timer'));
+    }
+    if (this.bgm) {
+      this.bgm.stop();
+      this.bgm.destroy();
+      this.bgm = null;
     }
     this.dataStore.destroy();
   }

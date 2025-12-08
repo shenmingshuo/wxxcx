@@ -42,26 +42,35 @@ export class GameCard extends UIComponent {
     }
 
     private loadBgImage(): void {
-        // 尝试加载对应游戏的封面图
-        // 命名规则: game_cover_{id}.png (id如果在 config 里不一致需要映射，这里假设 config.id 对应)
-        // 注意: config.id 可能包含中文，最好有个映射表。目前暂时用 config.id (如果是中文需要 encode?)
-        // 简单起见，我们假设 assets/covers/game_cover_{id}.png 存在
-        // 由于之前生成图片失败，这里可能加载不到，需要优雅降级
-
-        const bg = wx.createImage();
-        // 直接使用 ID (已统一为英文小写)
         const fileId = this.config.id.toLowerCase();
+        const path = `assets/covers/game_cover_${fileId}.png`;
 
-        bg.src = `assets/covers/game_cover_${fileId}.png`;
+        // In some environments, accessing a non-existent file triggers a fatal error.
+        // We can try to use wx.getFileSystemManager().access to check existence first,
+        // or just rely on the image.onerror callback if the environment supports it non-fatally.
+        // Given the error trace shows fs.openSync failure, we should check existence or use a safer approach.
 
-        bg.onload = () => {
-            this.bgImage = bg;
-            this.imageLoaded = true;
-        };
-        bg.onerror = () => {
-            // 加载失败，使用默认或纯色
+        try {
+            const fs = wx.getFileSystemManager();
+            fs.access({
+                path: path,
+                success: () => {
+                    const bg = wx.createImage();
+                    bg.src = path;
+                    bg.onload = () => {
+                        this.bgImage = bg;
+                        this.imageLoaded = true;
+                    };
+                },
+                fail: () => {
+                    // console.log(`[GameCard] Cover not found for ${fileId}, using fallback.`);
+                    this.imageLoaded = false;
+                }
+            });
+        } catch (e) {
+            // Fallback for environments without file system access
             this.imageLoaded = false;
-        };
+        }
     }
 
     protected onUpdate(dt: number): void {
@@ -87,8 +96,12 @@ export class GameCard extends UIComponent {
         ctx.clip();
 
         // 绘制背景 (图片 或 回退渐变)
+        // Always draw a solid base first to prevent gaps/transparency issues
+        ctx.fillStyle = this.config.color || '#000000';
+        ctx.fillRect(0, 0, width, height);
+
         if (this.imageLoaded && this.bgImage) {
-            // 保持比例填充
+            // Keep existing image drawing logic
             const imgRatio = this.bgImage.width / this.bgImage.height;
             const cardRatio = width / height;
 
@@ -98,12 +111,12 @@ export class GameCard extends UIComponent {
             let ry = 0;
 
             if (imgRatio > cardRatio) {
-                // 图片更宽，裁两边
+                // Image is wider, clip sides
                 rh = height;
                 rw = height * imgRatio;
                 rx = (width - rw) / 2;
             } else {
-                // 图片更高，裁上下
+                // Image is taller, clip top/bottom
                 rw = width;
                 rh = width / imgRatio;
                 ry = (height - rh) / 2;
@@ -111,7 +124,7 @@ export class GameCard extends UIComponent {
 
             ctx.drawImage(this.bgImage, rx, ry, rw, rh);
 
-            // 添加遮罩使文字清晰
+            // Add dark gradient overlay for text readability
             const gradient = ctx.createLinearGradient(0, 0, 0, height);
             gradient.addColorStop(0, 'rgba(0,0,0,0.1)');
             gradient.addColorStop(0.5, 'rgba(0,0,0,0.4)');
@@ -120,12 +133,13 @@ export class GameCard extends UIComponent {
             ctx.fillRect(0, 0, width, height);
 
         } else {
-            // 回退：深色科技背景
+            // Fallback Gradient if no image
             const gradient = ctx.createLinearGradient(0, 0, width, height);
             gradient.addColorStop(0, Theme.colors.background.paper);
-            gradient.addColorStop(1, '#000000');
+            gradient.addColorStop(1, this.config.color || '#000000');
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, width, height);
+
 
             // 绘制一个装饰性的大图标/文字作为背景
             ctx.globalAlpha = 0.1;
@@ -133,7 +147,13 @@ export class GameCard extends UIComponent {
             ctx.textAlign = 'right';
             ctx.textBaseline = 'bottom';
             ctx.fillStyle = Theme.colors.primary.main;
-            ctx.fillText(this.config.icon, width - 20, height - 20);
+
+            const iconVal = this.config.iconValue || this.config.icon || '?';
+            const isEmoji = this.config.iconType === 'emoji' || (!this.config.iconType && !iconVal.startsWith('assets/'));
+
+            if (isEmoji) {
+                ctx.fillText(iconVal, width - 20, height - 20);
+            }
             ctx.globalAlpha = 1.0;
         }
 
@@ -201,24 +221,32 @@ export class GameCard extends UIComponent {
         ctx.stroke();
 
         // Icon Image
-        // 我们假设 config.icon 是一个路径 "assets/icons/..."
-        // 如果是 emoji (旧配置)，则回退到文字绘制，或者我们假设早已更新了配置
-        if (this.config.icon.startsWith('assets/')) {
-            const iconImg = wx.createImage();
-            iconImg.src = this.config.icon;
-            // 由于是实时加载，可能闪烁。理想情况应该预加载。
-            // 这里简单处理：如果已加载则绘制，否则监听加载。
-            // 但 draw 是每帧调用的，不能在这里 create image。
-            // 应该在 constructor 或 init 里加载 iconImage。
-            // 暂时 hack: 我们在 GameCard 类里加一个 iconImage 属性
-            if (!this['iconImage']) {
-                this['iconImage'] = wx.createImage();
-                this['iconImage'].src = this.config.icon;
+        const iconType = this.config.iconType || 'image'; // default to image for backward compat logic
+        const iconValue = this.config.iconValue || this.config.icon;
+
+        if (!iconValue) return;
+
+        if (iconType === 'image' || (iconValue.startsWith && iconValue.startsWith('assets/'))) {
+            // Unique key for this icon to store load state
+            const iconKey = 'iconimg_' + iconValue;
+
+            if (!this[iconKey]) {
+                const img = wx.createImage();
+                img.src = iconValue;
+                img.onload = () => {
+                    this[iconKey + '_loaded'] = true;
+                };
+                img.onerror = () => {
+                    this[iconKey + '_loaded'] = false;
+                };
+                this[iconKey] = img;
             }
-            if (this['iconImage'].complete) {
+
+            // Only draw if fully loaded and successful
+            if (this[iconKey + '_loaded']) {
                 // 绘制图标，留一点 padding
                 const p = 6;
-                ctx.drawImage(this['iconImage'], x + p, y + p, size - p * 2, size - p * 2);
+                ctx.drawImage(this[iconKey], x + p, y + p, size - p * 2, size - p * 2);
             }
         } else {
             // Emoji Fallback
@@ -226,7 +254,7 @@ export class GameCard extends UIComponent {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = '#fff';
-            ctx.fillText(this.config.icon, x + size / 2, y + size / 2 + 2);
+            ctx.fillText(iconValue, x + size / 2, y + size / 2 + 2);
         }
     }
 

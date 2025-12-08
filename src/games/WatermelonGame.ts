@@ -7,38 +7,148 @@ import { Scene } from '../core/SceneManager';
 import { GameBridge } from '../core/GameBridge';
 
 // 简化的物理引擎 - 用于水果碰撞和下落
+// 简化的物理引擎 - 用于水果碰撞和下落
 class SimplePhysics {
   gravity: number = 0.5;
+  friction: number = 0.99;
+  restitution: number = 0.2; // 弹性系数
+  iterations: number = 8;    // 迭代次数，越高越稳定
   fruits: Fruit[] = [];
 
+  // 边界
+  minX: number = 0;
+  maxX: number = 0;
+  floorY: number = 0;
+
+  setBounds(minX: number, maxX: number, floorY: number) {
+    this.minX = minX;
+    this.maxX = maxX;
+    this.floorY = floorY;
+  }
+
   update() {
+    // 1. 应用重力和外部力
     this.fruits.forEach(fruit => {
+      fruit.updateAnimation(); // 更新缩放动画
       if (!fruit.isStatic) {
-        // 应用重力
         fruit.velocityY += this.gravity;
 
-        // 更新位置
+        // 简单的空气阻力
+        fruit.velocityX *= this.friction;
+        fruit.velocityY *= this.friction;
+
+        // 预测位置更新 (Verlet Integration思想)
         fruit.x += fruit.velocityX;
         fruit.y += fruit.velocityY;
-
-        // 简单的速度衰减
-        fruit.velocityX *= 0.99;
-        fruit.velocityY *= 0.99;
       }
     });
 
-    // 碰撞检测
-    this.checkCollisions();
+    // 2. 迭代解决约束 (碰撞和边界)
+    // 多次迭代可以显著减少重叠和抖动
+    for (let k = 0; k < this.iterations; k++) {
+      this.solveConstraints();
+    }
   }
 
-  checkCollisions() {
-    for (let i = 0; i < this.fruits.length; i++) {
-      for (let j = i + 1; j < this.fruits.length; j++) {
-        const fruitA = this.fruits[i];
-        const fruitB = this.fruits[j];
+  private solveConstraints() {
+    const fruitCount = this.fruits.length;
 
-        if (this.isColliding(fruitA, fruitB)) {
-          this.resolveCollision(fruitA, fruitB);
+    // A. 边界约束
+    for (let i = 0; i < fruitCount; i++) {
+      const fruit = this.fruits[i];
+      if (fruit.isStatic) continue;
+
+      // 左右墙壁
+      if (fruit.x - fruit.radius < this.minX) {
+        const penetration = this.minX - (fruit.x - fruit.radius);
+        fruit.x += penetration;
+        fruit.velocityX = Math.abs(fruit.velocityX) * 0.5; // 反弹+阻尼
+      } else if (fruit.x + fruit.radius > this.maxX) {
+        const penetration = (fruit.x + fruit.radius) - this.maxX;
+        fruit.x -= penetration;
+        fruit.velocityX = -Math.abs(fruit.velocityX) * 0.5;
+      }
+
+      // 地面
+      if (fruit.y + fruit.radius > this.floorY) {
+        const penetration = (fruit.y + fruit.radius) - this.floorY;
+        fruit.y -= penetration;
+        fruit.velocityY = -Math.abs(fruit.velocityY) * 0.3; // 吸收大部分能量
+        fruit.velocityX *= 0.9; // 地面摩擦
+      }
+    }
+
+    // B. 水果之间碰撞
+    for (let i = 0; i < fruitCount; i++) {
+      for (let j = i + 1; j < fruitCount; j++) {
+        const a = this.fruits[i];
+        const b = this.fruits[j];
+
+        // 如果是同类合并的，不在这里处理物理碰撞（或者让逻辑层移除它）
+        // 这里主要处理物理排斥
+
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const distSq = dx * dx + dy * dy;
+        const radiusSum = a.radius + b.radius;
+
+        if (distSq < radiusSum * radiusSum && distSq > 0) {
+          const dist = Math.sqrt(distSq);
+          const penetration = radiusSum - dist;
+
+          // 避免除以0
+          if (dist === 0) continue;
+
+          const nx = dx / dist;
+          const ny = dy / dist;
+
+          // 位置修正 (Position Correction)
+          // 根据质量反比分配修正量 (此处假设质量与半径成正比，或者简单均分)
+          const percent = 0.8; // 修正百分比，避免过于强硬的修正导致抖动
+          const correction = penetration * percent;
+
+          // 简单的质量假设：静态物体质量无限大
+          if (a.isStatic) {
+            if (!b.isStatic) {
+              b.x -= nx * correction;
+              b.y -= ny * correction;
+            }
+          } else if (b.isStatic) {
+            if (!a.isStatic) {
+              a.x += nx * correction;
+              a.y += ny * correction;
+            }
+          } else {
+            // 均分修正
+            const half = correction * 0.5;
+            a.x += nx * half;
+            a.y += ny * half;
+            b.x -= nx * half;
+            b.y -= ny * half;
+
+            // 速度冲量 (Velocity Impulse)
+            // 计算相对速度
+            const rvx = a.velocityX - b.velocityX;
+            const rvy = a.velocityY - b.velocityY;
+
+            // 在法线方向上的速度分量
+            const velAlongNormal = rvx * nx + rvy * ny;
+
+            // 如果已经在分离，则不处理
+            if (velAlongNormal > 0) continue;
+
+            // 计算冲量
+            let jImpulse = -(1 + this.restitution) * velAlongNormal;
+            jImpulse /= 2; // 假设质量相等 1/m + 1/m = 2
+
+            const impulseX = jImpulse * nx;
+            const impulseY = jImpulse * ny;
+
+            a.velocityX += impulseX;
+            a.velocityY += impulseY;
+            b.velocityX -= impulseX;
+            b.velocityY -= impulseY;
+          }
         }
       }
     }
@@ -47,41 +157,10 @@ class SimplePhysics {
   isColliding(a: Fruit, b: Fruit): boolean {
     const dx = a.x - b.x;
     const dy = a.y - b.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance < (a.radius + b.radius);
-  }
-
-  resolveCollision(a: Fruit, b: Fruit) {
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance === 0) return;
-
-    // 分离水果
-    const overlap = (a.radius + b.radius - distance) / 2;
-    const nx = dx / distance;
-    const ny = dy / distance;
-
-    a.x -= nx * overlap;
-    a.y -= ny * overlap;
-    b.x += nx * overlap;
-    b.y += ny * overlap;
-
-    // 弹性碰撞
-    const relVelX = b.velocityX - a.velocityX;
-    const relVelY = b.velocityY - a.velocityY;
-    const normalVel = relVelX * nx + relVelY * ny;
-
-    if (normalVel < 0) return;
-
-    const restitution = 0.3; // 弹性系数
-    const impulse = -(1 + restitution) * normalVel;
-
-    a.velocityX -= impulse * nx * 0.5;
-    a.velocityY -= impulse * ny * 0.5;
-    b.velocityX += impulse * nx * 0.5;
-    b.velocityY += impulse * ny * 0.5;
+    // 使用平方距离稍微优化性能
+    const distSq = dx * dx + dy * dy;
+    const radiusSum = a.radius + b.radius;
+    return distSq < radiusSum * radiusSum;
   }
 
   addFruit(fruit: Fruit) {
@@ -93,6 +172,75 @@ class SimplePhysics {
     if (index > -1) {
       this.fruits.splice(index, 1);
     }
+  }
+}
+
+// 粒子效果
+class Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  color: string;
+  life: number = 1.0;
+  size: number;
+
+  constructor(x: number, y: number, color: string) {
+    this.x = x;
+    this.y = y;
+    this.color = color;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 5 + 2;
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed;
+    this.size = Math.random() * 3 + 2;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += 0.2; // 重力
+    this.life -= 0.02;
+  }
+
+  draw(ctx: CanvasRenderingContext2D) {
+    ctx.globalAlpha = this.life;
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+  }
+}
+
+// 漂浮文字
+class FloatingText {
+  x: number;
+  y: number;
+  text: string;
+  life: number = 1.0;
+  vY: number = -2;
+
+  constructor(x: number, y: number, text: string) {
+    this.x = x;
+    this.y = y;
+    this.text = text;
+  }
+
+  update() {
+    this.y += this.vY;
+    this.life -= 0.02;
+  }
+
+  draw(ctx: CanvasRenderingContext2D) {
+    ctx.globalAlpha = this.life;
+    ctx.fillStyle = '#FFD700'; // 金色
+    ctx.font = 'bold 24px Arial';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.strokeText(this.text, this.x, this.y);
+    ctx.fillText(this.text, this.x, this.y);
+    ctx.globalAlpha = 1.0;
   }
 }
 
@@ -108,38 +256,89 @@ class Fruit {
   image: HTMLImageElement | null = null;
   toRemove: boolean = false;
 
+  // 动画属性
+  scale: number = 0;
+  targetScale: number = 1;
+
   constructor(x: number, y: number, type: number) {
     this.x = x;
     this.y = y;
     this.type = type;
     // 根据类型设置半径
-    this.radius = 20 + type * 5;
+    // Type 1 (Grape): 15
+    // Type 2 (Old 1): 20 + 5 = 25? 
+    // Old logic: 20 + type*5. Type 1 was 25.
+    // New logic: 
+    // Type 1: 15
+    // Type 2: 25
+    // Type 3: 30...
+    if (type === 1) {
+      this.radius = 15;
+    } else {
+      // Shift remaining to match old sizes approx
+      // Old Type 1 (now 2) was 25.
+      // So: 20 + (type-1)*5?
+      // Type 2: 20 + 5 = 25. Correct.
+      this.radius = 20 + (type - 1) * 5;
+    }
+  }
+
+  updateAnimation() {
+    if (this.scale < this.targetScale) {
+      this.scale += (this.targetScale - this.scale) * 0.2;
+      if (Math.abs(this.targetScale - this.scale) < 0.01) {
+        this.scale = this.targetScale;
+      }
+    }
   }
 
   draw(ctx: CanvasRenderingContext2D) {
-    if (this.image && this.image.complete) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    // 只有非静态（刚生成或合成）的水果才可能有缩放动画
+    // 为了简单，我们让所有水果都支持缩放，新生成的从0开始
+    ctx.scale(this.scale, this.scale);
+
+    // 检查图片完整性 (grape.png might likely fail)
+    if (this.image && this.image.complete && this.image.width > 0) {
       const size = this.radius * 2;
       ctx.drawImage(
         this.image,
-        this.x - this.radius,
-        this.y - this.radius,
+        -this.radius,
+        -this.radius,
         size,
         size
       );
     } else {
-      // 备用绘制
+      // 备用绘制 (Code draw)
       ctx.fillStyle = this.getColor();
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 给备用绘制加一点高光让它看起来像水果
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.arc(-this.radius * 0.3, -this.radius * 0.3, this.radius * 0.2, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.restore();
   }
 
   getColor(): string {
     const colors = [
-      '#FFC0CB', '#FFB6C1', '#FF69B4', '#FF1493',
-      '#DB7093', '#C71585', '#FF0000', '#FF4500',
-      '#FF6347', '#FF7F50', '#FFA500'
+      '#800080', // Type 1: Purple (Grape)
+      '#FFC0CB', // Type 2 (Old 1)
+      '#FFB6C1',
+      '#FF69B4',
+      '#FF1493',
+      '#DB7093',
+      '#C71585',
+      '#FF0000',
+      '#FF4500',
+      '#FF6347',
+      '#FF7F50',
+      '#FFA500'  // Type 12 (Big Melon) - Old 11
     ];
     return colors[this.type - 1] || '#FFA500';
   }
@@ -160,6 +359,10 @@ export class WatermelonGame implements Scene {
   private fruitCount: number = 0;
   private score: number = 0;
   private gameOver: boolean = false;
+
+  // 视觉效果
+  private particles: Particle[] = [];
+  private floatingTexts: FloatingText[] = [];
 
   // 游戏区域
   private gameWidth: number = 0;
@@ -191,11 +394,20 @@ export class WatermelonGame implements Scene {
     this.gameOffsetX = 20;
     this.gameOffsetY = 120;
 
+    // 设置物理边界
+    this.physics.setBounds(
+      this.gameOffsetX + 20,
+      this.gameOffsetX + this.gameWidth - 20,
+      this.gameOffsetY + this.gameHeight - 20
+    );
+
     // 加载图片资源
     this.loadImages();
   }
 
   private loadImages(): void {
+    // fruit_1 to fruit_11 become Type 2 to Type 12
+    // We skip loading 'grape.png' because it doesn't exist, preventing ENOENT errors.
     const fruits = [
       'fruit_1.png', 'fruit_2.png', 'fruit_3.png', 'fruit_4.png',
       'fruit_5.png', 'fruit_6.png', 'fruit_7.png', 'fruit_8.png',
@@ -207,9 +419,10 @@ export class WatermelonGame implements Scene {
 
     for (let i = 0; i < total; i++) {
       const fruitFileName = fruits[i];
-      const fruitType = i + 1; // Type is 1-indexed
+      // Type 1 is Grape (No Image), so existing images start from Type 2
+      const fruitType = i + 2;
       const img = wx.createImage();
-      // Update path to English directory
+
       img.src = `assets/watermelon/img/${fruitFileName}`;
 
       img.onload = () => {
@@ -227,7 +440,7 @@ export class WatermelonGame implements Scene {
         }
       };
 
-      this.fruitImages.set(i, img);
+      this.fruitImages.set(fruitType, img);
     }
   }
 
@@ -257,6 +470,8 @@ export class WatermelonGame implements Scene {
 
     this.currentFruit = new Fruit(x, y, type);
     this.currentFruit.isStatic = true;
+    this.currentFruit.scale = 0; // 从0开始
+    this.currentFruit.targetScale = 1;
     this.currentFruit.image = this.fruitImages.get(type) || null;
   }
 
@@ -306,14 +521,23 @@ export class WatermelonGame implements Scene {
           fruitB.toRemove = true;
 
           // 计算分数
-          this.score += fruitA.type * 10;
+          const point = fruitA.type * 10;
+          this.score += point;
 
           // 生成新水果
-          if (fruitA.type < 11) {
-            const newX = (fruitA.x + fruitB.x) / 2;
-            const newY = (fruitA.y + fruitB.y) / 2;
+          const newX = (fruitA.x + fruitB.x) / 2;
+          const newY = (fruitA.y + fruitB.y) / 2;
+
+          // 视觉特效：爆炸 + 飘字
+          this.createExplosion(newX, newY, fruitA.getColor());
+          this.showFloatingText(newX, newY, `+${point}`);
+
+          if (fruitA.type < 12) {
             const newFruit = new Fruit(newX, newY, fruitA.type + 1);
             newFruit.image = this.fruitImages.get(fruitA.type + 1) || null;
+            // 继承一点速度让效果更自然
+            newFruit.velocityX = (fruitA.velocityX + fruitB.velocityX) / 2;
+            newFruit.velocityY = (fruitA.velocityY + fruitB.velocityY) / 2;
             this.physics.addFruit(newFruit);
 
             // 播放音效（如果需要）
@@ -321,6 +545,8 @@ export class WatermelonGame implements Scene {
           } else {
             // 合成最大西瓜
             this.score += 1000;
+            this.showFloatingText(newX, newY, `BIG MELON! +1000`);
+            this.createExplosion(newX, newY, '#FF0000');
           }
         }
       }
@@ -330,35 +556,7 @@ export class WatermelonGame implements Scene {
     this.physics.fruits = this.physics.fruits.filter(f => !f.toRemove);
   }
 
-  private checkBounds(): void {
-    const minX = this.gameOffsetX + 20;
-    const maxX = this.gameOffsetX + this.gameWidth - 20;
-    const maxY = this.gameOffsetY + this.gameHeight - 20;
-
-    this.physics.fruits.forEach(fruit => {
-      // 左右边界
-      if (fruit.x - fruit.radius < minX) {
-        fruit.x = minX + fruit.radius;
-        fruit.velocityX = Math.abs(fruit.velocityX) * 0.5;
-      }
-      if (fruit.x + fruit.radius > maxX) {
-        fruit.x = maxX - fruit.radius;
-        fruit.velocityX = -Math.abs(fruit.velocityX) * 0.5;
-      }
-
-      // 底部边界
-      if (fruit.y + fruit.radius > maxY) {
-        fruit.y = maxY - fruit.radius;
-        fruit.velocityY = -Math.abs(fruit.velocityY) * 0.3;
-        fruit.velocityX *= 0.9;
-      }
-
-      // 检查游戏结束（水果超出顶部）
-      if (fruit.y - fruit.radius < this.gameOffsetY - 20) {
-        this.gameOver = true;
-      }
-    });
-  }
+  // private checkBounds(): void { ... } (Removed logic moved to SimplePhysics)
 
   update(deltaTime: number): void {
     if (!this.isRunning || this.gameOver) return;
@@ -369,8 +567,41 @@ export class WatermelonGame implements Scene {
     // 检查合成
     this.checkMerge();
 
-    // 检查边界
-    this.checkBounds();
+    // 更新特效
+    this.particles.forEach(p => p.update());
+    this.particles = this.particles.filter(p => p.life > 0);
+
+    this.floatingTexts.forEach(t => t.update());
+    this.floatingTexts = this.floatingTexts.filter(t => t.life > 0);
+
+    // 更新当前水果动画
+    if (this.currentFruit) {
+      this.currentFruit.updateAnimation();
+    }
+
+    // 检查游戏结束（水果超出顶部且静止）
+    // 给一点宽容度，只有当水果静止且在顶部线之上才结束
+    // 这里简单检查: if any static fruit is above limit
+    const limitY = this.gameOffsetY - 20;
+    for (const fruit of this.physics.fruits) {
+      if (!fruit.isStatic && Math.abs(fruit.velocityY) < 0.1 && fruit.y - fruit.radius < limitY) {
+        // 还需要确认不是刚生成的
+        if (fruit.y > 0) { // 简单防护
+          this.gameOver = true;
+          break;
+        }
+      }
+    }
+  }
+
+  private createExplosion(x: number, y: number, color: string) {
+    for (let i = 0; i < 15; i++) {
+      this.particles.push(new Particle(x, y, color));
+    }
+  }
+
+  private showFloatingText(x: number, y: number, text: string) {
+    this.floatingTexts.push(new FloatingText(x, y, text));
   }
 
   render(ctx: CanvasRenderingContext2D): void {
@@ -393,6 +624,10 @@ export class WatermelonGame implements Scene {
     if (this.currentFruit) {
       this.currentFruit.draw(ctx);
     }
+
+    // 绘制特效
+    this.particles.forEach(p => p.draw(ctx));
+    this.floatingTexts.forEach(t => t.draw(ctx));
 
     // 绘制UI
     this.drawUI(ctx);
