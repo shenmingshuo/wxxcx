@@ -72,8 +72,7 @@ export class Game2048 implements Scene {
     const { windowWidth, windowHeight } = wx.getSystemInfoSync();
     this.canvas.width = windowWidth;
     this.canvas.height = windowHeight;
-    
-    this.setupTouchControls();
+
     this.initButtons();
   }
 
@@ -109,21 +108,15 @@ export class Game2048 implements Scene {
     };
   }
 
-  private setupTouchControls(): void {
-    wx.onTouchStart((e) => {
-      if (e.touches.length > 0) {
-        this.touchStartX = e.touches[0].clientX;
-        this.touchStartY = e.touches[0].clientY;
-      }
-    });
+  onTouchStart(x: number, y: number): void {
+    this.touchStartX = x;
+    this.touchStartY = y;
+  }
 
-    wx.onTouchEnd((e) => {
-      if (e.changedTouches.length > 0) {
-        this.touchEndX = e.changedTouches[0].clientX;
-        this.touchEndY = e.changedTouches[0].clientY;
-        this.handleSwipe();
-      }
-    });
+  onTouchEnd(x: number, y: number): void {
+    this.touchEndX = x;
+    this.touchEndY = y;
+    this.handleSwipe();
   }
 
   private handleSwipe(): void {

@@ -124,14 +124,12 @@ export class TetrisGame implements Scene {
     const blockSizeByHeight = Math.floor(availableHeight / this.ROWS);
     const blockSizeByWidth = Math.floor((windowWidth - 40) / this.COLS);
     this.blockSize = Math.min(blockSizeByHeight, blockSizeByWidth);
-    
+
     this.offsetX = (windowWidth - this.blockSize * this.COLS) / 2;
     this.offsetY = 150;
 
     // 更新按钮位置
     this.pauseBtn.x = windowWidth - 100;
-
-    this.setupTouchControls();
   }
 
   enter(): void {
@@ -172,7 +170,7 @@ export class TetrisGame implements Scene {
     this.paused = false;
     this.dropInterval = 1000;
     this.lastDropTime = Date.now();
-    
+
     this.spawnPiece();
     this.spawnNextPiece();
   }
@@ -181,61 +179,55 @@ export class TetrisGame implements Scene {
     this.board = Array(this.ROWS).fill(null).map(() => Array(this.COLS).fill(null));
   }
 
-  private setupTouchControls(): void {
-    wx.onTouchStart((e) => {
-      if (e.touches.length > 0) {
-        this.touchStartX = e.touches[0].clientX;
-        this.touchStartY = e.touches[0].clientY;
-        this.touchStartTime = Date.now();
-      }
-    });
+  onTouchStart(x: number, y: number): void {
+    this.touchStartX = x;
+    this.touchStartY = y;
+    this.touchStartTime = Date.now();
+  }
 
-    wx.onTouchEnd((e) => {
-      if (e.changedTouches.length === 0) return;
+  onTouchEnd(x: number, y: number): void {
+    const touchEndX = x;
+    const touchEndY = y;
+    const touchDuration = Date.now() - this.touchStartTime;
 
-      const touchEndX = e.changedTouches[0].clientX;
-      const touchEndY = e.changedTouches[0].clientY;
-      const touchDuration = Date.now() - this.touchStartTime;
+    // 检查按钮点击
+    if (this.isPointInRect(this.touchStartX, this.touchStartY, this.backBtn)) {
+      this.handleBack();
+      return;
+    }
 
-      // 检查按钮点击
-      if (this.isPointInRect(this.touchStartX, this.touchStartY, this.backBtn)) {
-        this.handleBack();
-        return;
-      }
+    if (this.isPointInRect(this.touchStartX, this.touchStartY, this.pauseBtn)) {
+      this.togglePause();
+      return;
+    }
 
-      if (this.isPointInRect(this.touchStartX, this.touchStartY, this.pauseBtn)) {
-        this.togglePause();
-        return;
-      }
+    if (this.showingTutorial || this.gameOver || this.paused) return;
 
-      if (this.showingTutorial || this.gameOver || this.paused) return;
+    const deltaX = touchEndX - this.touchStartX;
+    const deltaY = touchEndY - this.touchStartY;
+    const absDeltaX = Math.abs(deltaX);
+    const absDeltaY = Math.abs(deltaY);
 
-      const deltaX = touchEndX - this.touchStartX;
-      const deltaY = touchEndY - this.touchStartY;
-      const absDeltaX = Math.abs(deltaX);
-      const absDeltaY = Math.abs(deltaY);
-
-      // 判断是点击还是滑动
-      if (touchDuration < this.tapMaxDuration && absDeltaX < 20 && absDeltaY < 20) {
-        // 点击 - 旋转
-        this.rotatePiece();
-      } else if (absDeltaX > this.minSwipeDistance || absDeltaY > this.minSwipeDistance) {
-        // 滑动
-        if (absDeltaX > absDeltaY) {
-          // 横向滑动
-          if (deltaX > 0) {
-            this.movePiece(1, 0); // 右移
-          } else {
-            this.movePiece(-1, 0); // 左移
-          }
+    // 判断是点击还是滑动
+    if (touchDuration < this.tapMaxDuration && absDeltaX < 20 && absDeltaY < 20) {
+      // 点击 - 旋转
+      this.rotatePiece();
+    } else if (absDeltaX > this.minSwipeDistance || absDeltaY > this.minSwipeDistance) {
+      // 滑动
+      if (absDeltaX > absDeltaY) {
+        // 横向滑动
+        if (deltaX > 0) {
+          this.movePiece(1, 0); // 右移
         } else {
-          // 纵向滑动
-          if (deltaY > 0) {
-            this.hardDrop(); // 下滑 - 快速下落
-          }
+          this.movePiece(-1, 0); // 左移
+        }
+      } else {
+        // 纵向滑动
+        if (deltaY > 0) {
+          this.hardDrop(); // 下滑 - 快速下落
         }
       }
-    });
+    }
   }
 
   private isPointInRect(x: number, y: number, rect: { x: number; y: number; width: number; height: number }): boolean {

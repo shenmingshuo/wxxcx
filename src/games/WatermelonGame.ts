@@ -16,11 +16,11 @@ class SimplePhysics {
       if (!fruit.isStatic) {
         // 应用重力
         fruit.velocityY += this.gravity;
-        
+
         // 更新位置
         fruit.x += fruit.velocityX;
         fruit.y += fruit.velocityY;
-        
+
         // 简单的速度衰减
         fruit.velocityX *= 0.99;
         fruit.velocityY *= 0.99;
@@ -36,7 +36,7 @@ class SimplePhysics {
       for (let j = i + 1; j < this.fruits.length; j++) {
         const fruitA = this.fruits[i];
         const fruitB = this.fruits[j];
-        
+
         if (this.isColliding(fruitA, fruitB)) {
           this.resolveCollision(fruitA, fruitB);
         }
@@ -55,29 +55,29 @@ class SimplePhysics {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    
+
     if (distance === 0) return;
-    
+
     // 分离水果
     const overlap = (a.radius + b.radius - distance) / 2;
     const nx = dx / distance;
     const ny = dy / distance;
-    
+
     a.x -= nx * overlap;
     a.y -= ny * overlap;
     b.x += nx * overlap;
     b.y += ny * overlap;
-    
+
     // 弹性碰撞
     const relVelX = b.velocityX - a.velocityX;
     const relVelY = b.velocityY - a.velocityY;
     const normalVel = relVelX * nx + relVelY * ny;
-    
+
     if (normalVel < 0) return;
-    
+
     const restitution = 0.3; // 弹性系数
     const impulse = -(1 + restitution) * normalVel;
-    
+
     a.velocityX -= impulse * nx * 0.5;
     a.velocityY -= impulse * ny * 0.5;
     b.velocityX += impulse * nx * 0.5;
@@ -145,8 +145,8 @@ class Fruit {
   }
 }
 
-export class 合成大西瓜Game implements Scene {
-  name: string = '合成大西瓜';
+export class WatermelonGame implements Scene {
+  name: string = 'watermelon';
   private canvas: WechatMinigame.Canvas;
   private ctx: CanvasRenderingContext2D;
   private gameBridge: GameBridge | null = null;
@@ -196,29 +196,37 @@ export class 合成大西瓜Game implements Scene {
   }
 
   private loadImages(): void {
-    const imagesToLoad = 11;
-    let loadedCount = 0;
+    const fruits = [
+      'fruit_1.png', 'fruit_2.png', 'fruit_3.png', 'fruit_4.png',
+      'fruit_5.png', 'fruit_6.png', 'fruit_7.png', 'fruit_8.png',
+      'fruit_9.png', 'fruit_10.png', 'fruit_11.png'
+    ];
 
-    for (let i = 1; i <= imagesToLoad; i++) {
+    let loadedCount = 0;
+    const total = fruits.length;
+
+    for (let i = 0; i < total; i++) {
+      const fruitFileName = fruits[i];
+      const fruitType = i + 1; // Type is 1-indexed
       const img = wx.createImage();
-      img.src = `assets/合成大西瓜/img/fruit_${i}.png`;
-      
+      // Update path to English directory
+      img.src = `assets/watermelon/img/${fruitFileName}`;
+
       img.onload = () => {
         loadedCount++;
-        if (loadedCount === imagesToLoad) {
+        if (loadedCount === total) {
           this.imagesLoaded = true;
           console.log('[合成大西瓜] 所有图片加载完成');
         }
       };
-      
+
       img.onerror = () => {
-        console.warn(`[合成大西瓜] 图片加载失败: fruit_${i}.png`);
         loadedCount++;
-        if (loadedCount === imagesToLoad) {
+        if (loadedCount === total) {
           this.imagesLoaded = true;
         }
       };
-      
+
       this.fruitImages.set(i, img);
     }
   }
@@ -230,7 +238,7 @@ export class 合成大西瓜Game implements Scene {
     this.score = 0;
     this.fruitCount = 0;
     this.physics.fruits = [];
-    
+
     // 生成第一个水果
     this.initOneFruit(1);
   }
@@ -246,7 +254,7 @@ export class 合成大西瓜Game implements Scene {
     this.fruitCount++;
     const x = this.gameOffsetX + this.gameWidth / 2;
     const y = this.gameOffsetY + 50;
-    
+
     this.currentFruit = new Fruit(x, y, type);
     this.currentFruit.isStatic = true;
     this.currentFruit.image = this.fruitImages.get(type) || null;
@@ -265,7 +273,7 @@ export class 合成大西瓜Game implements Scene {
 
   private dropFruit(): void {
     if (!this.currentFruit || this.isCreating) return;
-    
+
     this.isCreating = true;
     this.currentFruit.isStatic = false;
     this.physics.addFruit(this.currentFruit);
@@ -281,25 +289,25 @@ export class 合成大西瓜Game implements Scene {
 
   private checkMerge(): void {
     const fruits = this.physics.fruits;
-    
+
     for (let i = 0; i < fruits.length; i++) {
       if (fruits[i].toRemove) continue;
-      
+
       for (let j = i + 1; j < fruits.length; j++) {
         if (fruits[j].toRemove) continue;
-        
+
         const fruitA = fruits[i];
         const fruitB = fruits[j];
-        
+
         // 相同类型且碰撞
         if (fruitA.type === fruitB.type && this.physics.isColliding(fruitA, fruitB)) {
           // 标记删除
           fruitA.toRemove = true;
           fruitB.toRemove = true;
-          
+
           // 计算分数
           this.score += fruitA.type * 10;
-          
+
           // 生成新水果
           if (fruitA.type < 11) {
             const newX = (fruitA.x + fruitB.x) / 2;
@@ -307,7 +315,7 @@ export class 合成大西瓜Game implements Scene {
             const newFruit = new Fruit(newX, newY, fruitA.type + 1);
             newFruit.image = this.fruitImages.get(fruitA.type + 1) || null;
             this.physics.addFruit(newFruit);
-            
+
             // 播放音效（如果需要）
             // this.playMergeSound();
           } else {
@@ -317,7 +325,7 @@ export class 合成大西瓜Game implements Scene {
         }
       }
     }
-    
+
     // 移除标记的水果
     this.physics.fruits = this.physics.fruits.filter(f => !f.toRemove);
   }
@@ -326,7 +334,7 @@ export class 合成大西瓜Game implements Scene {
     const minX = this.gameOffsetX + 20;
     const maxX = this.gameOffsetX + this.gameWidth - 20;
     const maxY = this.gameOffsetY + this.gameHeight - 20;
-    
+
     this.physics.fruits.forEach(fruit => {
       // 左右边界
       if (fruit.x - fruit.radius < minX) {
@@ -337,14 +345,14 @@ export class 合成大西瓜Game implements Scene {
         fruit.x = maxX - fruit.radius;
         fruit.velocityX = -Math.abs(fruit.velocityX) * 0.5;
       }
-      
+
       // 底部边界
       if (fruit.y + fruit.radius > maxY) {
         fruit.y = maxY - fruit.radius;
         fruit.velocityY = -Math.abs(fruit.velocityY) * 0.3;
         fruit.velocityX *= 0.9;
       }
-      
+
       // 检查游戏结束（水果超出顶部）
       if (fruit.y - fruit.radius < this.gameOffsetY - 20) {
         this.gameOver = true;
@@ -357,10 +365,10 @@ export class 合成大西瓜Game implements Scene {
 
     // 更新物理
     this.physics.update();
-    
+
     // 检查合成
     this.checkMerge();
-    
+
     // 检查边界
     this.checkBounds();
   }
@@ -477,7 +485,7 @@ export class 合成大西瓜Game implements Scene {
   onTouchStart(x: number, y: number): void {
     // 返回按钮
     if (x >= this.backBtn.x && x <= this.backBtn.x + this.backBtn.width &&
-        y >= this.backBtn.y && y <= this.backBtn.y + this.backBtn.height) {
+      y >= this.backBtn.y && y <= this.backBtn.y + this.backBtn.height) {
       this.sceneManager.switchTo('menu');
       return;
     }

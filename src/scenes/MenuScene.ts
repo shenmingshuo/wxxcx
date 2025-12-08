@@ -66,10 +66,10 @@ export class MenuScene implements Scene {
   // 游戏配置
   private games: GameConfig[] = [
     {
-      id: '合成大西瓜',
+      id: 'watermelon',
       name: '合成大西瓜',
       description: '合成水果，挑战最大西瓜！',
-      icon: '🍉',
+      icon: 'assets/icons/icon_watermelon.png',
       supportMultiplayer: false,
       minPlayers: 1,
       maxPlayers: 1,
@@ -79,7 +79,7 @@ export class MenuScene implements Scene {
       id: 'game2048',
       name: '2048',
       description: '霓虹赛博数字迷阵',
-      icon: '🎲',
+      icon: 'assets/icons/icon_2048.png',
       supportMultiplayer: false,
       minPlayers: 1,
       maxPlayers: 1,
@@ -89,47 +89,17 @@ export class MenuScene implements Scene {
       id: 'tetris',
       name: '俄罗斯方块',
       description: '经典玩法的未来重构',
-      icon: '🧱',
+      icon: 'assets/icons/icon_tetris.png',
       supportMultiplayer: false,
       minPlayers: 1,
       maxPlayers: 1,
       duration: 600
     },
     {
-      id: 'shooter',
-      name: '空中射击',
-      description: '深空激战，弹幕躲避',
-      icon: '✈️',
-      supportMultiplayer: false,
-      minPlayers: 1,
-      maxPlayers: 1,
-      duration: 600
-    },
-    {
-      id: 'flappybird',
-      name: 'Flappy Bird',
-      description: '机械鸟的飞翔之旅',
-      icon: '🐦',
-      supportMultiplayer: false,
-      minPlayers: 1,
-      maxPlayers: 1,
-      duration: 300
-    },
-    {
-      id: 'boidgame',
-      name: '鸟群模拟',
-      description: '群体智能的视觉盛宴',
-      icon: '🦅',
-      supportMultiplayer: false,
-      minPlayers: 1,
-      maxPlayers: 1,
-      duration: 600
-    },
-    {
-      id: '笨鸟先飞',
+      id: 'clumsy_bird',
       name: '笨鸟先飞',
       description: '经典复刻版',
-      icon: '🐤',
+      icon: 'assets/icons/icon_clumsy.png',
       supportMultiplayer: false,
       minPlayers: 1,
       maxPlayers: 1,
@@ -287,6 +257,7 @@ export class MenuScene implements Scene {
   // --- 交互处理 (保持逻辑不变) ---
 
   onTouchStart(x: number, y: number): void {
+    console.log(`[MenuScene] Touch Start: ${x}, ${y}`);
     this.isDragging = false;
     this.touchStartY = y;
     this.touchStartScrollY = this.targetScrollY;
@@ -294,11 +265,16 @@ export class MenuScene implements Scene {
 
     const scrollY = y - this.scrollY;
 
-    if (y < 120) return; // TopBar area
+    if (y < 120) {
+      console.log('[MenuScene] Ignored touch in TopBar area');
+      return; // TopBar area
+    }
 
     let handled = false;
     for (let i = this.uiComponents.length - 1; i >= 0; i--) {
+      // console.log(`[MenuScene] Testing hit for component ${i}`);
       if (this.uiComponents[i].handleTouchStart(x, scrollY)) {
+        console.log(`[MenuScene] Hit component ${i}`);
         handled = true;
         break;
       }
@@ -313,6 +289,7 @@ export class MenuScene implements Scene {
     const deltaY = y - this.touchStartY;
     if (Math.abs(deltaY) > 5 && !this.isDragging) {
       this.isDragging = true;
+      console.log('[MenuScene] Started dragging');
     }
 
     if (this.isDragging) {
@@ -323,6 +300,7 @@ export class MenuScene implements Scene {
   }
 
   onTouchEnd(x: number, y: number): void {
+    console.log(`[MenuScene] Touch End: ${x}, ${y}, dragging=${this.isDragging}`);
     if (this.isDragging) {
       const deltaY = y - this.touchStartY;
       this.velocity = deltaY * 1.5;
@@ -333,6 +311,7 @@ export class MenuScene implements Scene {
     const scrollY = y - this.scrollY;
     for (let i = this.uiComponents.length - 1; i >= 0; i--) {
       if (this.uiComponents[i].handleTouchEnd(x, scrollY)) {
+        console.log(`[MenuScene] Component ${i} handled touch end`);
         break;
       }
     }
@@ -352,19 +331,24 @@ export class MenuScene implements Scene {
   }
 
   private onGameCardClick(game: GameConfig): void {
+    console.log(`[MenuScene] Card clicked: ${game.name} (${game.id})`);
     wx.showModal({
       title: game.name,
       content: 'Ready to Start?',
       showCancel: true,
-      cancelText: 'Single',
-      confirmText: 'Multiplayer',
+      cancelText: '单人',
+      confirmText: '多人',
       confirmColor: Theme.colors.primary.main,
       success: (res) => {
+        console.log('[MenuScene] Modal result:', res);
         if (res.confirm) {
           (this as any).__sceneManager.switchTo('lobby', { gameType: game.id });
         } else if (res.cancel) {
           (this as any).__sceneManager.switchTo(game.id, { mode: 'single' });
         }
+      },
+      fail: (err) => {
+        console.error('[MenuScene] ShowModal failed:', err);
       }
     });
   }

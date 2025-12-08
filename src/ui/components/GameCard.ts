@@ -38,6 +38,7 @@ export class GameCard extends UIComponent {
         // 不拦截点击，卡片整体可点
         this.startButton.interactive = false;
         this.addChild(this.startButton);
+        console.log(`[GameCard] Created for ${config.name}, interactive=${this.interactive}, x=${x}, y=${y}, w=${width}, h=${height}`);
     }
 
     private loadBgImage(): void {
@@ -48,10 +49,8 @@ export class GameCard extends UIComponent {
         // 由于之前生成图片失败，这里可能加载不到，需要优雅降级
 
         const bg = wx.createImage();
-        // 映射一些中文ID到英文文件名
-        let fileId = this.config.id;
-        if (fileId === '合成大西瓜') fileId = 'watermelon';
-        if (fileId === '笨鸟先飞') fileId = 'flappy_bird_classic';
+        // 直接使用 ID (已统一为英文小写)
+        const fileId = this.config.id.toLowerCase();
 
         bg.src = `assets/covers/game_cover_${fileId}.png`;
 
@@ -201,12 +200,34 @@ export class GameCard extends UIComponent {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.stroke();
 
-        // Emoji
-        ctx.font = `${size * 0.6}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#fff';
-        ctx.fillText(this.config.icon, x + size / 2, y + size / 2 + 2);
+        // Icon Image
+        // 我们假设 config.icon 是一个路径 "assets/icons/..."
+        // 如果是 emoji (旧配置)，则回退到文字绘制，或者我们假设早已更新了配置
+        if (this.config.icon.startsWith('assets/')) {
+            const iconImg = wx.createImage();
+            iconImg.src = this.config.icon;
+            // 由于是实时加载，可能闪烁。理想情况应该预加载。
+            // 这里简单处理：如果已加载则绘制，否则监听加载。
+            // 但 draw 是每帧调用的，不能在这里 create image。
+            // 应该在 constructor 或 init 里加载 iconImage。
+            // 暂时 hack: 我们在 GameCard 类里加一个 iconImage 属性
+            if (!this['iconImage']) {
+                this['iconImage'] = wx.createImage();
+                this['iconImage'].src = this.config.icon;
+            }
+            if (this['iconImage'].complete) {
+                // 绘制图标，留一点 padding
+                const p = 6;
+                ctx.drawImage(this['iconImage'], x + p, y + p, size - p * 2, size - p * 2);
+            }
+        } else {
+            // Emoji Fallback
+            ctx.font = `${size * 0.6}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(this.config.icon, x + size / 2, y + size / 2 + 2);
+        }
     }
 
     private drawTag(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, color: string): void {

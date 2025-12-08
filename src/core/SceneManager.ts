@@ -27,7 +27,7 @@ export class SceneManager extends EventEmitter {
     super();
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
-    
+
     // 设置触摸事件
     this.setupTouchEvents();
   }
@@ -61,7 +61,7 @@ export class SceneManager extends EventEmitter {
     // 进入新场景
     this.currentScene = newScene;
     this.currentScene.enter();
-    
+
     this.emit('scene_changed', sceneName, data);
   }
 
@@ -70,7 +70,7 @@ export class SceneManager extends EventEmitter {
    */
   start(): void {
     if (this.running) return;
-    
+
     this.running = true;
     this.lastTime = Date.now();
     this.gameLoop();
@@ -132,22 +132,24 @@ export class SceneManager extends EventEmitter {
   private setupTouchEvents(): void {
     wx.onTouchStart((event) => {
       if (!this.currentScene || !this.currentScene.onTouchStart) return;
-      
+
       const touch = event.touches[0];
+      console.log(`[SceneManager] Touch Start: ${touch.clientX}, ${touch.clientY}`);
       this.currentScene.onTouchStart(touch.clientX, touch.clientY);
     });
 
     wx.onTouchMove((event) => {
       if (!this.currentScene || !this.currentScene.onTouchMove) return;
-      
+
       const touch = event.touches[0];
       this.currentScene.onTouchMove(touch.clientX, touch.clientY);
     });
 
     wx.onTouchEnd((event) => {
       if (!this.currentScene || !this.currentScene.onTouchEnd) return;
-      
+
       const touch = event.changedTouches[0];
+      console.log(`[SceneManager] Touch End: ${touch.clientX}, ${touch.clientY}`);
       this.currentScene.onTouchEnd(touch.clientX, touch.clientY);
     });
   }

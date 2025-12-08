@@ -1,7 +1,7 @@
 // 包装原项目的 Main 类，适配资源路径
 import { ResourceLoader } from "./base/resourceLoader";
 import { Manager } from './manager';
-import { Background } from './runtime/background'; 
+import { Background } from './runtime/background';
 import { DataStore } from './base/dataStore';
 import { Land } from './runtime/land';
 import { Birds } from './player/birds';
@@ -36,7 +36,7 @@ export class Main {
       const bgm = wx.createInnerAudioContext();
       bgm.autoplay = true;
       bgm.loop = true;
-      bgm.src = 'assets/笨鸟先飞/bgm.mp3';
+      bgm.src = 'assets/clumsy_bird/bgm.mp3';
     } catch (e) {
       console.log('[笨鸟先飞] Background music not available');
     }
@@ -46,11 +46,11 @@ export class Main {
     // 重置游戏
     this.manager.isGameOver = false;
     this.dataStore.put('pencils', [])
-                .put('background', new Background())
-                .put('land', new Land())
-                .put('bird', new Birds())
-                .put('startButton', new StartButton())
-                .put('score', new Score());
+      .put('background', new Background())
+      .put('land', new Land())
+      .put('bird', new Birds())
+      .put('startButton', new StartButton())
+      .put('score', new Score());
     this.registerEvent();
     this.manager.createPencil();
     this.manager.run();

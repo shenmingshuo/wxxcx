@@ -10,12 +10,10 @@ import { MenuScene } from './scenes/MenuScene';
 import { LobbyScene } from './scenes/LobbyScene';
 
 // 游戏
-import { 合成大西瓜Game } from './games/合成大西瓜Game';
+import { WatermelonGame } from './games/WatermelonGame';
 import { Game2048 } from './games/Game2048';
 import { TetrisGame } from './games/TetrisGame';
-import { ShooterGame } from './games/ShooterGame';
-import { FlappyBirdGame } from './games/FlappyBirdGame';
-import { 笨鸟先飞Game } from './games/笨鸟先飞Game';
+import { ClumsyBirdGame } from './games/ClumsyBirdGame';
 
 class Game {
   private sceneManager: SceneManager;
@@ -34,12 +32,12 @@ class Game {
 
     // 创建 Canvas
     const canvas = wx.createCanvas();
-    
+
     // 设置 Canvas 样式，禁用用户缩放
     const systemInfo = wx.getSystemInfoSync();
     canvas.width = systemInfo.windowWidth;
     canvas.height = systemInfo.windowHeight;
-    
+
     // 初始化管理器
     this.sceneManager = new SceneManager(canvas);
     this.networkManager = new NetworkManager();
@@ -74,7 +72,7 @@ class Game {
     this.sceneManager.register(lobbyScene);
 
     // 合成大西瓜游戏 - 放在第一位
-    const watermelonGame = new 合成大西瓜Game();
+    const watermelonGame = new WatermelonGame();
     watermelonGame.setSceneManager(this.sceneManager);
     watermelonGame.setGameBridge(this.gameBridge);
     this.sceneManager.register(watermelonGame);
@@ -91,23 +89,12 @@ class Game {
     tetrisGame.setGameBridge(this.gameBridge);
     this.sceneManager.register(tetrisGame);
 
-    // 射击游戏
-    const shooterGame = new ShooterGame();
-    shooterGame.setSceneManager(this.sceneManager);
-    shooterGame.setGameBridge(this.gameBridge);
-    this.sceneManager.register(shooterGame);
-
-    // Flappy Bird 游戏
-    const flappyBirdGame = new FlappyBirdGame();
-    flappyBirdGame.setSceneManager(this.sceneManager);
-    flappyBirdGame.setGameBridge(this.gameBridge);
-    this.sceneManager.register(flappyBirdGame);
 
     // 笨鸟先飞游戏（新版Flappy Bird）
-    const 笨鸟先飞 = new 笨鸟先飞Game();
-    笨鸟先飞.setSceneManager(this.sceneManager);
-    笨鸟先飞.setGameBridge(this.gameBridge);
-    this.sceneManager.register(笨鸟先飞);
+    const clumsyBird = new ClumsyBirdGame();
+    clumsyBird.setSceneManager(this.sceneManager);
+    clumsyBird.setGameBridge(this.gameBridge);
+    this.sceneManager.register(clumsyBird);
 
     console.log('[Game] All scenes registered');
   }
@@ -119,13 +106,13 @@ class Game {
     // TODO: 从配置文件读取服务器地址
     // 开发环境使用本地服务器
     const serverUrl = 'wss://your-server.com/ws'; // 需要替换为实际服务器地址
-    
+
     // 注意：开发时需要先启动后端服务器
     // 为了演示，这里先不连接，等后端服务器准备好后再连接
-    
+
     console.log('[Game] Server URL:', serverUrl);
     console.log('[Game] Note: Update server URL in src/game.ts');
-    
+
     // 连接事件监听
     this.networkManager.on('connected', () => {
       console.log('[Game] Connected to server');
