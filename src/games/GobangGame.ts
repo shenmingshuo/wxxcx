@@ -14,6 +14,7 @@ export class GobangGame implements Scene {
     private readonly BOARD_SIZE = 15;
     private readonly CELL_SIZE = 40; // Will be calculated based on screen width
     private readonly BOARD_PADDING = 20;
+    private readonly AI_THINKING_DELAY = 2000; // ms
 
     // Game State
     private board: number[][] = []; // 0=Empty, 1=Black (Player), 2=White (AI)
@@ -23,6 +24,8 @@ export class GobangGame implements Scene {
     private lastMove: { row: number, col: number } | null = null;
     private userPlayer: number = 1; // 1=Black, 2=White
     private difficulty: 'easy' | 'medium' | 'hard' = 'medium';
+    private winningLine: { row: number, col: number }[] | null = null;
+    private winLinePulse: number = 0;
 
     // UI
     private boardX: number = 0;
@@ -34,6 +37,7 @@ export class GobangGame implements Scene {
     private backBtn: Button | null = null;
 
     private audioContext: any = null;
+    private aiMoveTimer: ReturnType<typeof setTimeout> | null = null;
 
     init(): void {
         const { windowWidth, windowHeight } = wx.getSystemInfoSync();
@@ -64,11 +68,14 @@ export class GobangGame implements Scene {
     }
 
     resetGame() {
+        this.clearAIMoveTimer();
         this.board = Array(this.BOARD_SIZE).fill(0).map(() => Array(this.BOARD_SIZE).fill(0));
         this.currentPlayer = 1; // Black always starts
         this.gameOver = false;
         this.winner = 0;
         this.lastMove = null;
+        this.winningLine = null;
+        this.winLinePulse = 0;
 
         // Randomize User Side (50/50)
         this.userPlayer = Math.random() < 0.5 ? 1 : 2;
@@ -85,19 +92,21 @@ export class GobangGame implements Scene {
     exit(): void {
         console.log('[Gobang] Game exiting...');
         this.isRunning = false;
+        this.clearAIMoveTimer();
     }
 
     update(deltaTime: number): void {
         if (this.restartBtn) this.restartBtn.update(deltaTime);
         if (this.backBtn) this.backBtn.update(deltaTime);
+        if (this.gameOver && this.winningLine) {
+            this.winLinePulse += deltaTime;
+        }
 
         // AI Turn Logic: If it's NOT user's turn (and game running), AI moves
         if (!this.gameOver && this.currentPlayer !== this.userPlayer && this.isRunning) {
-            setTimeout(() => {
-                if (this.isRunning && !this.gameOver && this.currentPlayer !== this.userPlayer) {
-                    this.makeAIMove();
-                }
-            }, 500);
+            this.scheduleAIMove();
+        } else {
+            this.clearAIMoveTimer();
         }
     }
 
@@ -111,8 +120,14 @@ export class GobangGame implements Scene {
         // Draw UI (Buttons & Status) normally
         this.drawUI(ctx);
 
+        const shouldHighlightWin = this.gameOver && this.winningLine;
+
         if (this.gameOver) {
             this.drawGameOver(ctx);
+        }
+
+        if (shouldHighlightWin && this.winningLine) {
+            this.drawWinningLine(ctx);
         }
     }
 
@@ -224,6 +239,41 @@ export class GobangGame implements Scene {
         }
     }
 
+    private drawWinningLine(ctx: CanvasRenderingContext2D) {
+        if (!this.winningLine || this.winningLine.length === 0) return;
+
+        const cellSize = this.boardWidth / 14;
+        const pulse = (Math.sin(this.winLinePulse / 250) + 1) / 2;
+        const start = this.winningLine[0];
+        const end = this.winningLine[this.winningLine.length - 1];
+        const startX = this.boardX + start.col * cellSize;
+        const startY = this.boardY + start.row * cellSize;
+        const endX = this.boardX + end.col * cellSize;
+        const endY = this.boardY + end.row * cellSize;
+
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineWidth = cellSize * (0.15 + pulse * 0.1);
+        ctx.strokeStyle = `rgba(255, 87, 34, ${0.65 + pulse * 0.3})`;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.fillStyle = `rgba(255, 235, 59, ${0.4 + pulse * 0.4})`;
+        const glowRadius = cellSize * (0.25 + pulse * 0.1);
+        for (const pos of this.winningLine) {
+            const cx = this.boardX + pos.col * cellSize;
+            const cy = this.boardY + pos.row * cellSize;
+            ctx.beginPath();
+            ctx.arc(cx, cy, glowRadius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
     private drawUI(ctx: CanvasRenderingContext2D) {
         if (this.restartBtn) this.restartBtn.render(ctx);
         if (this.backBtn) this.backBtn.render(ctx);
@@ -251,24 +301,33 @@ export class GobangGame implements Scene {
     private drawGameOver(ctx: CanvasRenderingContext2D) {
         const { width, height } = ctx.canvas;
 
-        // Overlay
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
         ctx.fillRect(0, 0, width, height);
+        ctx.restore();
 
-        // Result Box
-        const mw = width * 0.8;
-        const mh = 200;
-        const mx = (width - mw) / 2;
-        const my = (height - mh) / 2;
+        // Prefer using the free area above or below the board so the winning line stays visible
+        const panelWidth = Math.min(width * 0.75, this.boardWidth);
+        const panelHeight = 150;
+        const spaceTop = this.boardY;
+        const spaceBottom = height - (this.boardY + this.boardWidth);
+        let my: number;
+
+        if (spaceTop > spaceBottom) {
+            my = Math.max(20, (spaceTop - panelHeight) / 2);
+        } else {
+            my = Math.min(height - panelHeight - 20, this.boardY + this.boardWidth + Math.max(10, (spaceBottom - panelHeight) / 2));
+        }
+
+        const mx = (width - panelWidth) / 2;
 
         ctx.fillStyle = '#fff';
-        ctx.shadowColor = 'rgba(0,0,0,0.3)';
-        ctx.shadowBlur = 20;
-        ctx.fillRect(mx, my, mw, mh);
+        ctx.shadowColor = 'rgba(0,0,0,0.25)';
+        ctx.shadowBlur = 12;
+        ctx.fillRect(mx, my, panelWidth, panelHeight);
         ctx.shadowBlur = 0;
 
-        // Title
-        ctx.font = 'bold 36px Arial';
+        ctx.font = 'bold 32px Arial';
         ctx.textAlign = 'center';
 
         let title = '平局';
@@ -277,26 +336,24 @@ export class GobangGame implements Scene {
         if (this.winner !== 0) {
             if (this.winner === this.userPlayer) {
                 title = '恭喜获胜!';
-                color = '#2e7d32'; // Green
+                color = '#2e7d32';
             } else {
                 title = '遗憾落败';
-                color = '#d32f2f'; // Red
+                color = '#d32f2f';
             }
         }
 
         ctx.fillStyle = color;
-        ctx.fillText(title, width / 2, my + 60);
+        ctx.fillText(title, width / 2, my + 55);
 
-        // Subtext
         ctx.fillStyle = '#333';
-        ctx.font = '24px Arial';
+        ctx.font = '22px Arial';
         const reason = this.winner === 1 ? '黑棋连成五子' : (this.winner === 2 ? '白棋连成五子' : '双方和棋');
-        ctx.fillText(reason, width / 2, my + 110);
+        ctx.fillText(reason, width / 2, my + 100);
 
-        // Reminder for buttons
         ctx.fillStyle = '#999';
         ctx.font = '16px Arial';
-        ctx.fillText('点击下方按钮重新开始或退出', width / 2, my + 160);
+        ctx.fillText('使用下方按钮重新开始或退出', width / 2, my + 130);
     }
 
     onTouchStart(x: number, y: number): void {
@@ -341,9 +398,12 @@ export class GobangGame implements Scene {
             this.audioContext.play();
         }
 
-        if (this.checkWin(row, col, this.currentPlayer)) {
+        const winLine = this.getWinningLine(row, col, this.currentPlayer);
+        if (winLine) {
             this.gameOver = true;
             this.winner = this.currentPlayer;
+            this.winningLine = winLine;
+            this.winLinePulse = 0;
         } else {
             this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
         }
@@ -351,6 +411,7 @@ export class GobangGame implements Scene {
 
     private makeAIMove() {
         if (this.gameOver) return;
+        this.clearAIMoveTimer();
 
         let bestMove: { row: number, col: number } | null = null;
 
@@ -496,16 +557,16 @@ export class GobangGame implements Scene {
         return total * weight;
     }
 
-    private checkWin(row: number, col: number, player: number): boolean {
+    private getWinningLine(row: number, col: number, player: number): { row: number, col: number }[] | null {
         const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
 
         for (const [dr, dc] of dirs) {
-            let count = 1;
+            const sequence = [{ row, col }];
 
             let r = row + dr;
             let c = col + dc;
             while (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && this.board[r][c] === player) {
-                count++;
+                sequence.push({ row: r, col: c });
                 r += dr;
                 c += dc;
             }
@@ -513,14 +574,21 @@ export class GobangGame implements Scene {
             r = row - dr;
             c = col - dc;
             while (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && this.board[r][c] === player) {
-                count++;
+                sequence.unshift({ row: r, col: c });
                 r -= dr;
                 c -= dc;
             }
 
-            if (count >= 5) return true;
+            if (sequence.length >= 5) {
+                if (sequence.length > 5) {
+                    const currentIndex = sequence.findIndex(p => p.row === row && p.col === col);
+                    const startIndex = Math.                                                                                                                                                                                                                                                                                                                              max(0, Math.min(currentIndex - 2, sequence.length - 5));
+                    return sequence.slice(startIndex, startIndex + 5);
+                }
+                return sequence;
+            }
         }
-        return false;
+        return null;
     }
 
     setGameBridge(bridge: GameBridge): void {
@@ -529,5 +597,22 @@ export class GobangGame implements Scene {
 
     setSceneManager(manager: any): void {
         this.sceneManager = manager;
+    }
+
+    private scheduleAIMove() {
+        if (this.aiMoveTimer !== null) return;
+        this.aiMoveTimer = setTimeout(() => {
+            this.aiMoveTimer = null;
+            if (this.isRunning && !this.gameOver && this.currentPlayer !== this.userPlayer) {
+                this.makeAIMove();
+            }
+        }, this.AI_THINKING_DELAY);
+    }
+
+    private clearAIMoveTimer() {
+        if (this.aiMoveTimer !== null) {
+            clearTimeout(this.aiMoveTimer);
+            this.aiMoveTimer = null;
+        }
     }
 }

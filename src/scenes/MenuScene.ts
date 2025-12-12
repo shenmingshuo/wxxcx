@@ -118,6 +118,18 @@ export class MenuScene implements Scene {
       minPlayers: 1,
       maxPlayers: 1,
       duration: 300
+    },
+    {
+      id: 'sniper_pve',
+      name: '你狙我躲 · PVE',
+      description: '单人练习版：墙后躲藏 + 三发狙击',
+      iconType: 'emoji',
+      iconValue: '🎯',
+      color: '#1E88E5',
+      supportMultiplayer: false,
+      minPlayers: 1,
+      maxPlayers: 1,
+      duration: 180
     }
   ];
 

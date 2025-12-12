@@ -15,6 +15,7 @@ import { Game2048 } from './games/Game2048';
 import { TetrisGame } from './games/TetrisGame';
 import { ClumsyBirdGame } from './games/ClumsyBirdGame';
 import { GobangGame } from './games/GobangGame';
+import { SniperPveScene } from './games/SniperPveScene';
 
 class Game {
   private sceneManager: SceneManager;
@@ -103,6 +104,11 @@ class Game {
     gobangGame.setGameBridge(this.gameBridge);
     this.sceneManager.register(gobangGame);
 
+    const sniperPve = new SniperPveScene();
+    sniperPve.setSceneManager(this.sceneManager);
+    sniperPve.setGameBridge(this.gameBridge);
+    this.sceneManager.register(sniperPve);
+
     console.log('[Game] All scenes registered');
   }
 
@@ -152,4 +158,3 @@ class Game {
 
 // 启动游戏
 new Game();
-
